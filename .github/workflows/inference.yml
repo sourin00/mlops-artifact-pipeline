@@ -1,0 +1,90 @@
+name: Complete ML Pipeline
+
+on:
+  push:
+    branches: [ inference_branch ]
+  pull_request:
+    branches: [ inference_branch ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Cases
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short
+
+  train:
+    runs-on: ubuntu-latest
+    name: Train Model
+    needs: test  # Only run if test job passes
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run training
+      run: |
+        cd src
+        python train.py
+
+    - name: Upload model artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: trained-model
+        path: src/model_train.pkl
+
+  inference:
+    runs-on: ubuntu-latest
+    name: Run Inference
+    needs: train  # Only run if train job passes
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Download model artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: trained-model
+        path: src/
+
+    - name: Run inference
+      run: |
+        cd src
+        python inference.py
